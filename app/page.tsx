@@ -27,7 +27,7 @@ export default function Home() {
     if (chatContainerRef.current) {
       chatContainerRef.current.scrollTop = chatContainerRef.current.scrollHeight
     }
-  }, [messages]) // Updated dependency
+  }, [messages]) 
 
   const handleInputChange = (e: React.ChangeEvent<HTMLTextAreaElement>) => {
     setInput(e.target.value)
@@ -95,7 +95,7 @@ export default function Home() {
 
   const handleSummarize = async (index: number) => {
     try {
-      setLoadingIndex(index); // Set loading state for this message
+      setLoadingIndex(index); 
   
       if (!("ai" in self) || !("summarizer" in self.ai)) {
         console.error("AI Summarizer is not available");
@@ -273,8 +273,8 @@ export default function Home() {
             onChange={handleInputChange}
             onKeyDown={(e) => {
               if (e.key === "Enter" && !e.shiftKey) {
-                e.preventDefault(); // Prevents adding a new line
-                handleSend(); // Calls the send function
+                e.preventDefault(); 
+                handleSend(); 
               }
             }}
             placeholder="Type your message here..."
