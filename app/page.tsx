@@ -49,6 +49,10 @@ export default function Home() {
       try {
         // Detect language
        if (!('ai' in self) || !('languageDetector' in self.ai)) {
+        toast({
+          variant: "destructive",
+          description: "AI language detector not available",
+        })
             return { error: "AI language detector not available" };
           }
       
@@ -56,6 +60,10 @@ export default function Home() {
           const canDetect = languageDetectorCapabilities.capabilities;
       
           if (canDetect === 'no') {
+            toast({
+              variant: "destructive",
+              description: "AI language detector not available",
+            })
             return { error: "Language detection not supported" };
           }
       
@@ -99,12 +107,17 @@ export default function Home() {
   
       if (!("ai" in self) || !("summarizer" in self.ai)) {
         console.error("AI Summarizer is not available");
+        toast({
+          variant: "destructive",
+          description: "AI Summarizer is not available",
+        })
         return;
       }
   
       const summarizerCapabilities = await self.ai.summarizer.capabilities();
       if (summarizerCapabilities.available === "no") {
         console.error("Summarizer API is not available");
+        
         return;
       }
   
