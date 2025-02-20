@@ -1,101 +1,293 @@
-import Image from "next/image";
+// @ts-nocheck
+
+"use client"
+
+import type React from "react"
+
+import { useState, useRef, useEffect } from "react"
+import { Button } from "@/components/ui/button"
+import { Textarea } from "@/components/ui/textarea"
+import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select"
+import { Loader2, Send } from "lucide-react"
+import { useToast } from "@/hooks/use-toast"
 
 export default function Home() {
-  return (
-    <div className="grid grid-rows-[20px_1fr_20px] items-center justify-items-center min-h-screen p-8 pb-20 gap-16 sm:p-20 font-[family-name:var(--font-geist-sans)]">
-      <main className="flex flex-col gap-8 row-start-2 items-center sm:items-start">
-        <Image
-          className="dark:invert"
-          src="/next.svg"
-          alt="Next.js logo"
-          width={180}
-          height={38}
-          priority
-        />
-        <ol className="list-inside list-decimal text-sm text-center sm:text-left font-[family-name:var(--font-geist-mono)]">
-          <li className="mb-2">
-            Get started by editing{" "}
-            <code className="bg-black/[.05] dark:bg-white/[.06] px-1 py-0.5 rounded font-semibold">
-              app/page.tsx
-            </code>
-            .
-          </li>
-          <li>Save and see your changes instantly.</li>
-        </ol>
+  const [input, setInput] = useState("")
+  const [messages, setMessages] = useState<
+    { text: string; language?: string; summary?: string; translation?: string }[]
+  >([])
+  const [selectedLanguage, setSelectedLanguage] = useState("en")
+  const textareaRef = useRef<HTMLTextAreaElement>(null)
+  const chatContainerRef = useRef<HTMLDivElement>(null)
+  const [loadingIndex, setLoadingIndex] = useState<number | null>(null);
 
-        <div className="flex gap-4 items-center flex-col sm:flex-row">
-          <a
-            className="rounded-full border border-solid border-transparent transition-colors flex items-center justify-center bg-foreground text-background gap-2 hover:bg-[#383838] dark:hover:bg-[#ccc] text-sm sm:text-base h-10 sm:h-12 px-4 sm:px-5"
-            href="https://vercel.com/new?utm_source=create-next-app&utm_medium=appdir-template-tw&utm_campaign=create-next-app"
-            target="_blank"
-            rel="noopener noreferrer"
-          >
-            <Image
-              className="dark:invert"
-              src="/vercel.svg"
-              alt="Vercel logomark"
-              width={20}
-              height={20}
-            />
-            Deploy now
-          </a>
-          <a
-            className="rounded-full border border-solid border-black/[.08] dark:border-white/[.145] transition-colors flex items-center justify-center hover:bg-[#f2f2f2] dark:hover:bg-[#1a1a1a] hover:border-transparent text-sm sm:text-base h-10 sm:h-12 px-4 sm:px-5 sm:min-w-44"
-            href="https://nextjs.org/docs?utm_source=create-next-app&utm_medium=appdir-template-tw&utm_campaign=create-next-app"
-            target="_blank"
-            rel="noopener noreferrer"
-          >
-            Read our docs
-          </a>
-        </div>
-      </main>
-      <footer className="row-start-3 flex gap-6 flex-wrap items-center justify-center">
-        <a
-          className="flex items-center gap-2 hover:underline hover:underline-offset-4"
-          href="https://nextjs.org/learn?utm_source=create-next-app&utm_medium=appdir-template-tw&utm_campaign=create-next-app"
-          target="_blank"
-          rel="noopener noreferrer"
-        >
-          <Image
-            aria-hidden
-            src="/file.svg"
-            alt="File icon"
-            width={16}
-            height={16}
-          />
-          Learn
-        </a>
-        <a
-          className="flex items-center gap-2 hover:underline hover:underline-offset-4"
-          href="https://vercel.com/templates?framework=next.js&utm_source=create-next-app&utm_medium=appdir-template-tw&utm_campaign=create-next-app"
-          target="_blank"
-          rel="noopener noreferrer"
-        >
-          <Image
-            aria-hidden
-            src="/window.svg"
-            alt="Window icon"
-            width={16}
-            height={16}
-          />
-          Examples
-        </a>
-        <a
-          className="flex items-center gap-2 hover:underline hover:underline-offset-4"
-          href="https://nextjs.org?utm_source=create-next-app&utm_medium=appdir-template-tw&utm_campaign=create-next-app"
-          target="_blank"
-          rel="noopener noreferrer"
-        >
-          <Image
-            aria-hidden
-            src="/globe.svg"
-            alt="Globe icon"
-            width={16}
-            height={16}
-          />
-          Go to nextjs.org →
-        </a>
-      </footer>
-    </div>
-  );
+  const { toast } = useToast()
+
+  useEffect(() => {
+    if (chatContainerRef.current) {
+      chatContainerRef.current.scrollTop = chatContainerRef.current.scrollHeight
+    }
+  }, [messages]) // Updated dependency
+
+  const handleInputChange = (e: React.ChangeEvent<HTMLTextAreaElement>) => {
+    setInput(e.target.value)
+    if (textareaRef.current) {
+      textareaRef.current.style.height = "auto"
+      textareaRef.current.style.height = `${Math.min(textareaRef.current.scrollHeight, 150)}px`
+    }
+  }
+
+  const handleSend = async () => {
+    if (input.trim()) {
+      const newMessage = { text: input }
+      setMessages([...messages, newMessage])
+      setInput("")
+      if (textareaRef.current) {
+        textareaRef.current.style.height = "auto"
+      }
+
+      try {
+        // Detect language
+       if (!('ai' in self) || !('languageDetector' in self.ai)) {
+            return { error: "AI language detector not available" };
+          }
+      
+          const languageDetectorCapabilities = await self.ai.languageDetector.capabilities();
+          const canDetect = languageDetectorCapabilities.capabilities;
+      
+          if (canDetect === 'no') {
+            return { error: "Language detection not supported" };
+          }
+      
+          let detector;
+          if (canDetect === 'readily') {
+            detector = await self.ai.languageDetector.create();
+          } else {
+            detector = await self.ai.languageDetector.create({
+              monitor(m) {
+                m.addEventListener('downloadprogress', (e) => {
+                  console.log(`Downloaded ${e.loaded} of ${e.total} bytes.`);
+                });
+              },
+            });
+            await detector.ready;
+          }
+      
+          const results = await detector.detect(input);
+          if (results.length === 0) {
+            return { error: "No language detected" }
+          }
+      
+          const { detectedLanguage, confidence } = results[0];
+          /* console.log(detectedLanguage, confidence); */
+
+          const language = detectedLanguage
+
+        // Update the message with detected language
+        setMessages((prevMessages) =>
+          prevMessages.map((msg, index) => (index === prevMessages.length - 1 ? { ...msg, language } : msg)),
+        )
+      } catch (error) {
+        console.error("Error detecting language:", error)
+      }
+    }
+  }
+
+  const handleSummarize = async (index: number) => {
+    try {
+      setLoadingIndex(index); // Set loading state for this message
+  
+      if (!("ai" in self) || !("summarizer" in self.ai)) {
+        console.error("AI Summarizer is not available");
+        return;
+      }
+  
+      const summarizerCapabilities = await self.ai.summarizer.capabilities();
+      if (summarizerCapabilities.available === "no") {
+        console.error("Summarizer API is not available");
+        return;
+      }
+  
+      const summarizerOptions = {
+        sharedContext: "This is a general text summarization",
+        type: "key-points", // 'key-points', 'tl;dr', 'teaser', 'headline'
+        format: "markdown", // 'markdown', 'plain-text'
+        length: "medium", // 'short', 'medium', 'long'
+      };
+  
+      let summarizer;
+      if (summarizerCapabilities.available === "readily") {
+        summarizer = await self.ai.summarizer.create(summarizerOptions);
+      } else {
+        summarizer = await self.ai.summarizer.create(summarizerOptions);
+        summarizer.addEventListener("downloadprogress", (e) => {
+          console.log(`Downloaded ${e.loaded} of ${e.total} bytes.`);
+        });
+        await summarizer.ready;
+      }
+  
+      const textToSummarize = messages[index]?.text;
+      if (!textToSummarize) {
+        console.error("No text to summarize");
+        return;
+      }
+  
+      console.log("Summarizing:", textToSummarize);
+      const summary = await summarizer.summarize(textToSummarize);
+  
+      console.log("Summary result:", summary);
+  
+      setMessages((prevMessages) =>
+        prevMessages.map((msg, i) => (i === index ? { ...msg, summary } : msg))
+      );
+    } catch (error) {
+      console.error("Error summarizing text:", error);
+    } finally {
+      setLoadingIndex(null); 
+    }
+  };
+
+  const handleTranslate = async (index: number) => {
+    try {
+      if (!("ai" in self) || !("translator" in self.ai)) {
+        console.error("AI language Translator not available");
+        return;
+      }
+  
+      const translatorCapabilities = await self.ai.translator.capabilities();
+
+      const isAvailable = translatorCapabilities.languagePairAvailable("en", selectedLanguage);
+  
+      if (isAvailable !== "readily") {
+        console.error("Translation for this language pair is not available");
+
+        toast({
+          description: "Translation for this language pair is not available. Try again later",
+        })
+
+        return;
+      }
+  
+      const translator = await self.ai.translator.create({
+        sourceLanguage: "en",
+        targetLanguage: selectedLanguage,
+        monitor(m) {
+          m.addEventListener("downloadprogress", (e) => {
+            console.log(`Downloaded ${e.loaded} of ${e.total} bytes.`);
+          });
+        },
+      });
+  
+      const textToTranslate = messages[index]?.text;
+      if (!textToTranslate) {
+        console.error("No text found for translation.");
+        return;
+      }
+  
+    /*   console.log("Translating:", textToTranslate); */
+      const translation = await translator.translate(textToTranslate);
+  
+  /*     console.log("Translation result:", translation); */
+  
+      setMessages((prevMessages) =>
+        prevMessages.map((msg, i) => (i === index ? { ...msg, translation } : msg))
+      );
+    } catch (error) {
+      console.error("Error translating text:", error);
+    }
+  };
+
+  return (
+    <main
+      className="flex flex-col h-screen bg-cover bg-center"
+      style={{
+        backgroundImage: "url('/images/chat-bg.jpg')",
+      }}
+    >
+      <div className="flex-grow overflow-hidden flex flex-col">
+        <h1 className="text-4xl font-bold p-4 text-center text-white">AI-Powered Text Processor</h1>
+        <div className="flex-grow overflow-hidden flex flex-col px-4 md:px-24">
+          <div ref={chatContainerRef} className="flex-grow overflow-y-auto bg-white bg-opacity-80 rounded-lg p-6 mb-4">
+            {messages.map((message, index) => (
+              <div key={index} className="mb-6 last:mb-0">
+                <div className="bg-blue-100 rounded-lg p-3 inline-block max-w-[80%]">
+                  <p className="text-gray-800">{message.text}</p>
+                </div>
+                {message.language && (
+                  <p className="text-xs text-gray-600 mt-1 font-semibold">Detected Language: {message.language}</p>
+                )}
+                <div className="flex items-center mt-2 space-x-2">
+                  {message.text.length > 150 && message.language === "en" && !message.summary && (
+                    <>
+{
+                    loadingIndex ? 
+                    <Button disabled onClick={() => handleSummarize(index)} size="sm" variant="outline">
+                      <Loader2 className="mr-2 h-4 w-4 animate-spin" />
+                    Loading...
+                  </Button>
+                  :
+                    <Button onClick={() => handleSummarize(index)} size="sm" variant="outline" aria-label="Summarize">
+                      Summarize
+                    </Button>
 }
+                    </>
+                  )}
+                  <Select aria-label="Select language" onValueChange={setSelectedLanguage}>
+                    <SelectTrigger className="w-[120px] h-8 text-xs">
+                      <SelectValue placeholder="Translate to" />
+                    </SelectTrigger>
+                    <SelectContent>
+                    
+                      <SelectItem value="pt">Portuguese</SelectItem>
+                      <SelectItem value="es">Spanish</SelectItem>
+                      <SelectItem value="ru">Russian</SelectItem>
+                      <SelectItem value="tr">Turkish</SelectItem>
+                      <SelectItem value="fr">French</SelectItem>
+                      <SelectItem value="ja">Japanese</SelectItem>
+                    </SelectContent>
+                  </Select>
+                  <Button onClick={() => handleTranslate(index)} size="sm" variant="outline" aria-label="Translate">
+                    Translate
+                  </Button>
+                </div>
+                {message.summary && (
+                  <div className="bg-green-100 rounded-lg p-3 mt-2 inline-block max-w-[80%]">
+                    <p className="text-sm text-gray-800"><span className="font-semibold">Summary: </span> {message.summary}</p>
+                  </div>
+                )}
+                {message.translation && (
+                  <div className="bg-yellow-100 rounded-lg p-3 mt-2 inline-block max-w-[80%]">
+                    <p className="text-sm text-gray-800"><span className="font-semibold">Translation: </span>{message.translation}</p>
+                  </div>
+                )}
+              </div>
+            ))}
+          </div>
+        </div>
+      </div>
+      <div className="bg-white bg-opacity-80 p-4">
+        <div className="max-w-3xl mx-auto flex items-center">
+          <Textarea
+            ref={textareaRef}
+            value={input}
+            onChange={handleInputChange}
+            onKeyDown={(e) => {
+              if (e.key === "Enter" && !e.shiftKey) {
+                e.preventDefault(); // Prevents adding a new line
+                handleSend(); // Calls the send function
+              }
+            }}
+            placeholder="Type your message here..."
+            className="flex-grow mr-2 resize-none overflow-hidden border-gray-950 border-2"
+            rows={1}
+            style={{ minHeight: "40px", maxHeight: "150px" }}
+          />
+          <Button onClick={handleSend} className="px-4 py-2 h-10" aria-label="Send">
+            <Send className="h-4 w-4" />
+          </Button>
+        </div>
+      </div>
+    </main>
+  )
+}
+
